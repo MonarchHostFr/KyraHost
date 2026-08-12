@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =========================================================
-#   KyraPanel Manager v1.1 (Fixed Paths)
+#   KyraPanel Manager v1.2 (CodeSandbox Fixed)
 #  Interactive Installer, Uninstaller & Updater
 # =========================================================
 
@@ -12,15 +12,22 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# FIXED PATHS: Use Home Directory to avoid ALL permission issues!
+# Directories - Use Home Directory
 INSTALL_DIR="$HOME/kyrapanel"
 DAEMON_DIR="$HOME/kyradaemon"
+
+# Detect environment
+IS_CODESANDBOX=false
+if [ -n "$CODESANDBOX_SBOX_ID" ] || [ "$HOME" = "/home/coder" ] || [ -d "/workspace" ]; then
+    IS_CODESANDBOX=true
+fi
 
 # =========================================================
 #  FUNCTIONS
 # =========================================================
 
 do_install() {
+    clear
     echo -e "${BLUE}=========================================================${NC}"
     echo -e "${BLUE}  🚀 Starting KyraPanel Installation...${NC}"
     echo -e "${BLUE}  Installing to: $INSTALL_DIR${NC}"
@@ -29,19 +36,29 @@ do_install() {
     # 1. Node & PM2 Check
     if ! command -v node &> /dev/null; then
         echo -e "${YELLOW}🟢 Installing Node.js...${NC}"
-        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-        apt install -y nodejs
+        if command -v apt &> /dev/null; then
+            curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+            apt install -y nodejs
+        elif command -v yum &> /dev/null; then
+            curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+            yum install -y nodejs
+        fi
     else
         echo -e "${GREEN}✅ Node.js already installed ($(node -v))${NC}"
     fi
 
-    npm install -g pm2 2>/dev/null || true
+    npm install -g pm2 2>/dev/null || echo "⚠️  PM2 install might need manual intervention"
 
-    # 2. Create Directories (This will definitely work now!)
-    echo -e "${YELLOW}📁 Creating folders...${NC}"
+    # 2. Create Directories
+    echo -e "${YELLOW} Creating folders...${NC}"
     mkdir -p "$INSTALL_DIR/public" "$INSTALL_DIR/database"
     mkdir -p "$DAEMON_DIR"
     
+    if [ ! -d "$INSTALL_DIR" ]; then
+        echo -e "${RED}❌ Failed to create directory $INSTALL_DIR${NC}"
+        exit 1
+    fi
+
     cd "$INSTALL_DIR" || { echo -e "${RED}❌ Failed to enter directory!${NC}"; exit 1; }
 
     # 3. Write Panel Files
@@ -124,7 +141,7 @@ app.listen(PORT, '0.0.0.0', () => { console.log(`✅ KyraPanel running on http:/
 SRV
 
     # 4. Write Daemon Files
-    echo -e "${YELLOW}📝 Writing Daemon files...${NC}"
+    echo -e "${YELLOW} Writing Daemon files...${NC}"
     cd "$DAEMON_DIR" || { echo -e "${RED}❌ Failed to enter daemon directory!${NC}"; exit 1; }
     cat > package.json << 'DPKG'
 {"name":"kyradaemon","version":"1.0.0","main":"daemon.js","dependencies":{"express":"^4.18.2","dockerode":"^4.0.0"}}
@@ -161,7 +178,7 @@ DMN
     cat > "$INSTALL_DIR/public/index.html" << 'HTML1'
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>KyraPanel</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-gray-900 text-white font-sans">
-<nav class="bg-gray-800 p-4 shadow-lg"><div class="container mx-auto flex justify-between"><h1 class="text-2xl font-bold text-blue-400">🐉 KyraPanel</h1><div class="space-x-4"><a href="/" class="font-bold">Dashboard</a><a href="/servers">Servers</a><a href="/eggs">Egg Manager</a></div></div></nav>
+<nav class="bg-gray-800 p-4 shadow-lg"><div class="container mx-auto flex justify-between"><h1 class="text-2xl font-bold text-blue-400"> KyraPanel</h1><div class="space-x-4"><a href="/" class="font-bold">Dashboard</a><a href="/servers">Servers</a><a href="/eggs">Egg Manager</a></div></div></nav>
 <main class="container mx-auto mt-10 p-4">
   <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <div class="bg-gray-800 p-6 rounded-lg shadow"><h2 class="text-xl font-semibold mb-2">Total Servers</h2><p class="text-4xl font-bold text-blue-400" id="server-count">0</p></div>
@@ -203,7 +220,7 @@ HTML1
     cat > "$INSTALL_DIR/public/eggs.html" << 'HTML2'
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>KyraPanel - Eggs</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-gray-900 text-white font-sans">
-<nav class="bg-gray-800 p-4 shadow-lg"><div class="container mx-auto flex justify-between"><h1 class="text-2xl font-bold text-blue-400"> KyraPanel</h1><div class="space-x-4"><a href="/">Dashboard</a><a href="/servers">Servers</a><a href="/eggs" class="font-bold">Egg Manager</a></div></div></nav>
+<nav class="bg-gray-800 p-4 shadow-lg"><div class="container mx-auto flex justify-between"><h1 class="text-2xl font-bold text-blue-400">🐉 KyraPanel</h1><div class="space-x-4"><a href="/">Dashboard</a><a href="/servers">Servers</a><a href="/eggs" class="font-bold">Egg Manager</a></div></div></nav>
 <main class="container mx-auto mt-10 p-4 max-w-5xl">
   <div class="bg-gray-800 p-6 rounded-lg shadow mb-8">
     <h2 class="text-2xl font-bold mb-4">Import Pterodactyl Egg</h2>
@@ -247,39 +264,63 @@ loadServers();
 HTML3
 
     # 6. Install NPM & Start
-    echo -e "${YELLOW} Installing NPM packages...${NC}"
+    echo -e "${YELLOW}📦 Installing NPM packages (this may take 2-3 minutes)...${NC}"
     cd "$INSTALL_DIR" && npm install --production
     cd "$DAEMON_DIR" && npm install --production
 
     echo -e "${YELLOW}⚙️  Starting services...${NC}"
     pkill -f "node.*server.js" 2>/dev/null || true
     pkill -f "node.*daemon.js" 2>/dev/null || true
+    sleep 1
 
     cd "$DAEMON_DIR" && nohup node daemon.js > daemon.log 2>&1 &
+    DAEMON_PID=$!
     sleep 2
+    
     cd "$INSTALL_DIR" && PORT=6767 nohup node server.js > panel.log 2>&1 &
+    PANEL_PID=$!
+
+    # Save PIDs
+    echo $DAEMON_PID > "$DAEMON_DIR/daemon.pid"
+    echo $PANEL_PID > "$INSTALL_DIR/panel.pid"
+
+    # Wait for services to start
+    sleep 3
 
     echo -e "${GREEN}=========================================================${NC}"
     echo -e "${GREEN}✅ INSTALLATION SUCCESSFUL!${NC}"
-    echo -e "${GREEN} Folders created at: $HOME/kyrapanel & $HOME/kyradaemon${NC}"
+    echo -e "${GREEN}📁 Folders:${NC}"
+    echo -e "${GREEN}   - Panel: $INSTALL_DIR${NC}"
+    echo -e "${GREEN}   - Daemon: $DAEMON_DIR${NC}"
     echo -e "${GREEN}🌐 Panel: Port 6767 | 🤖 Daemon: Port 6868${NC}"
+    echo -e "${GREEN}📝 Logs: tail -f $INSTALL_DIR/panel.log${NC}"
     echo -e "${GREEN}=========================================================${NC}"
-    read -p "Press Enter to return to menu..."
+    echo ""
+    echo -e "${YELLOW}Press Enter to continue...${NC}"
+    read -r || true
 }
 
 do_uninstall() {
+    clear
     echo -e "${RED}=========================================================${NC}"
-    echo -e "${RED}  ️  KyraPanel & KyraDaemon Uninstaller${NC}"
+    echo -e "${RED}  🗑️  KyraPanel & KyraDaemon Uninstaller${NC}"
     echo -e "${RED}=========================================================${NC}"
-    echo -e "${YELLOW}⚠️  This will ONLY remove KyraPanel & KyraDaemon files.${NC}"
-    read -p "Are you sure you want to proceed? (y/N): " confirm
-    if [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]]; then
-        echo -e "${YELLOW} Stopping services...${NC}"
+    echo -e "${YELLOW}️  This will ONLY remove KyraPanel & KyraDaemon files.${NC}"
+    echo -e "${YELLOW}   Docker, Node.js, and PM2 will remain SAFE.${NC}"
+    echo ""
+    echo -e "${YELLOW}Are you sure you want to proceed?${NC}"
+    echo -e "${YELLOW}Type 'yes' to confirm or anything else to cancel:${NC}"
+    echo -n "> "
+    read -r confirm || confirm=""
+    
+    if [[ $confirm == "yes" || $confirm == "y" || $confirm == "Y" ]]; then
+        echo -e "${YELLOW}Stopping services...${NC}"
         pm2 delete kyrapanel kyradaemon 2>/dev/null || true
         pkill -f "node.*server.js" 2>/dev/null || true
         pkill -f "node.*daemon.js" 2>/dev/null || true
+        sleep 2
         
-        echo -e "${YELLOW} Removing project directories...${NC}"
+        echo -e "${YELLOW}Removing project directories...${NC}"
         rm -rf "$INSTALL_DIR"
         rm -rf "$DAEMON_DIR"
         
@@ -289,46 +330,70 @@ do_uninstall() {
     else
         echo -e "${RED}❌ Uninstallation cancelled.${NC}"
     fi
-    read -p "Press Enter to return to menu..."
+    echo ""
+    echo -e "${YELLOW}Press Enter to continue...${NC}"
+    read -r || true
 }
 
 do_update() {
+    clear
     echo -e "${BLUE}=========================================================${NC}"
     echo -e "${BLUE}   Updating KyraPanel...${NC}"
     echo -e "${BLUE}=========================================================${NC}"
-    read -p "Proceed with update? (y/N): " confirm
-    if [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]]; then
+    echo -e "${YELLOW}This will update panel and daemon files.${NC}"
+    echo -e "${YELLOW}Your database will remain SAFE.${NC}"
+    echo ""
+    echo -e "${YELLOW}Proceed with update? (yes/no):${NC}"
+    echo -n "> "
+    read -r confirm || confirm=""
+    
+    if [[ $confirm == "yes" || $confirm == "y" || $confirm == "Y" ]]; then
+        echo -e "${YELLOW}Stopping current services...${NC}"
+        pm2 stop kyrapanel kyradaemon 2>/dev/null || true
         pkill -f "node.*server.js" 2>/dev/null || true
         pkill -f "node.*daemon.js" 2>/dev/null || true
+        sleep 2
+        
         do_install
-        echo -e "${GREEN}✅ Update Complete!${NC}"
+        
+        echo -e "${GREEN}=========================================================${NC}"
+        echo -e "${GREEN}✅ Update Complete! Services restarted.${NC}"
+        echo -e "${GREEN}=========================================================${NC}"
     else
         echo -e "${RED}❌ Update cancelled.${NC}"
     fi
-    read -p "Press Enter to return to menu..."
+    echo ""
+    echo -e "${YELLOW}Press Enter to continue...${NC}"
+    read -r || true
 }
 
-# =========================================================
-#  MAIN MENU UI
-# =========================================================
-while true; do
+show_menu() {
     clear
-    echo -e "${BLUE}══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║             KyraPanel Manager v1.1                 ║${NC}"
+    echo -e "${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BLUE}║              KyraPanel Manager v1.2                  ║${NC}"
     echo -e "${BLUE}╠══════════════════════════════════════════════════════════╣${NC}"
-    echo -e "${BLUE}║  ${NC} 1) 🚀 Install KyraPanel (Full Setup)                  ${BLUE}║${NC}"
+    echo -e "${BLUE}║  ${NC} 1)  Install KyraPanel (Full Setup)                  ${BLUE}║${NC}"
     echo -e "${BLUE}║  ${NC} 2) 🗑️  Uninstall KyraPanel (Clean Removal)             ${BLUE}║${NC}"
     echo -e "${BLUE}║  ${NC} 3) 🔄 Update KyraPanel (Get Latest Version)           ${BLUE}║${NC}"
     echo -e "${BLUE}║  ${NC} 4) ❌ Exit                                            ${BLUE}║${NC}"
     echo -e "${BLUE}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    read -p "  Enter your choice [1-4]: " choice
+}
+
+# =========================================================
+#  MAIN MENU LOOP
+# =========================================================
+while true; do
+    show_menu
+    echo -e "${YELLOW}Enter your choice [1-4]:${NC}"
+    echo -n "> "
+    read -r choice || choice=""
 
     case $choice in
         1) do_install ;;
         2) do_uninstall ;;
         3) do_update ;;
-        4) echo -e "${GREEN} Goodbye! Exiting KyraPanel Manager.${NC}"; exit 0 ;;
+        4) echo -e "${GREEN}Goodbye! Exiting KyraPanel Manager.${NC}"; exit 0 ;;
         *) echo -e "${RED}❌ Invalid option. Please try again.${NC}"; sleep 2 ;;
     esac
 done

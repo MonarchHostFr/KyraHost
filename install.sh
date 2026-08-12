@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =========================================================
-#   KyraPanel Manager v1.2 (CodeSandbox Fixed)
+#   KyraPanel Manager v1.3 (Auto CodeSandbox Support)
 #  Interactive Installer, Uninstaller & Updater
 # =========================================================
 
@@ -35,7 +35,7 @@ do_install() {
 
     # 1. Node & PM2 Check
     if ! command -v node &> /dev/null; then
-        echo -e "${YELLOW}🟢 Installing Node.js...${NC}"
+        echo -e "${YELLOW} Installing Node.js...${NC}"
         if command -v apt &> /dev/null; then
             curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
             apt install -y nodejs
@@ -47,7 +47,7 @@ do_install() {
         echo -e "${GREEN}✅ Node.js already installed ($(node -v))${NC}"
     fi
 
-    npm install -g pm2 2>/dev/null || echo "⚠️  PM2 install might need manual intervention"
+    npm install -g pm2 2>/dev/null || echo "️  PM2 install might need manual intervention"
 
     # 2. Create Directories
     echo -e "${YELLOW} Creating folders...${NC}"
@@ -251,7 +251,7 @@ HTML2
     cat > "$INSTALL_DIR/public/servers.html" << 'HTML3'
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>KyraPanel - Servers</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-gray-900 text-white font-sans">
-<nav class="bg-gray-800 p-4 shadow-lg"><div class="container mx-auto flex justify-between"><h1 class="text-2xl font-bold text-blue-400">🐉 KyraPanel</h1><div class="space-x-4"><a href="/">Dashboard</a><a href="/servers" class="font-bold">Servers</a><a href="/eggs">Egg Manager</a></div></div></nav>
+<nav class="bg-gray-800 p-4 shadow-lg"><div class="container mx-auto flex justify-between"><h1 class="text-2xl font-bold text-blue-400"> KyraPanel</h1><div class="space-x-4"><a href="/">Dashboard</a><a href="/servers" class="font-bold">Servers</a><a href="/eggs">Egg Manager</a></div></div></nav>
 <main class="container mx-auto mt-10 p-4"><div class="bg-gray-800 p-6 rounded-lg shadow"><h2 class="text-2xl font-bold mb-4">All Servers</h2><div id="server-list"><p class="text-gray-400">Loading...</p></div></div></main>
 <script>
 async function loadServers() {
@@ -292,12 +292,9 @@ HTML3
     echo -e "${GREEN}📁 Folders:${NC}"
     echo -e "${GREEN}   - Panel: $INSTALL_DIR${NC}"
     echo -e "${GREEN}   - Daemon: $DAEMON_DIR${NC}"
-    echo -e "${GREEN}🌐 Panel: Port 6767 | 🤖 Daemon: Port 6868${NC}"
-    echo -e "${GREEN}📝 Logs: tail -f $INSTALL_DIR/panel.log${NC}"
+    echo -e "${GREEN} Panel: Port 6767 |  Daemon: Port 6868${NC}"
+    echo -e "${GREEN} Logs: tail -f $INSTALL_DIR/panel.log${NC}"
     echo -e "${GREEN}=========================================================${NC}"
-    echo ""
-    echo -e "${YELLOW}Press Enter to continue...${NC}"
-    read -r || true
 }
 
 do_uninstall() {
@@ -370,10 +367,10 @@ do_update() {
 show_menu() {
     clear
     echo -e "${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║              KyraPanel Manager v1.2                  ║${NC}"
+    echo -e "${BLUE}║              KyraPanel Manager v1.3                  ║${NC}"
     echo -e "${BLUE}╠══════════════════════════════════════════════════════════╣${NC}"
     echo -e "${BLUE}║  ${NC} 1)  Install KyraPanel (Full Setup)                  ${BLUE}║${NC}"
-    echo -e "${BLUE}║  ${NC} 2) 🗑️  Uninstall KyraPanel (Clean Removal)             ${BLUE}║${NC}"
+    echo -e "${BLUE}║  ${NC} 2) ️  Uninstall KyraPanel (Clean Removal)             ${BLUE}║${NC}"
     echo -e "${BLUE}║  ${NC} 3) 🔄 Update KyraPanel (Get Latest Version)           ${BLUE}║${NC}"
     echo -e "${BLUE}║  ${NC} 4) ❌ Exit                                            ${BLUE}║${NC}"
     echo -e "${BLUE}╚══════════════════════════════════════════════════════════╝${NC}"
@@ -381,7 +378,18 @@ show_menu() {
 }
 
 # =========================================================
-#  MAIN MENU LOOP
+#  AUTO-DETECT CODESANDBOX - SKIP MENU
+# =========================================================
+if [ "$IS_CODESANDBOX" = true ]; then
+    echo -e "${YELLOW}📦 CodeSandbox detected! Auto-installing KyraPanel...${NC}"
+    echo -e "${YELLOW}⏳ Please wait (this may take 2-3 minutes)...${NC}"
+    sleep 2
+    do_install
+    exit 0
+fi
+
+# =========================================================
+#  MAIN MENU LOOP (Only for VPS/Regular terminals)
 # =========================================================
 while true; do
     show_menu
